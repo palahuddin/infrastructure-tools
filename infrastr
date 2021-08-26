@@ -1,17 +1,20 @@
 #!/bin/bash
 
 usage="
-infrastr Script, Personal Infrastructure Setup Purpose
+infrastr Script, Personal Infrastructure Setup Purpose For Common Tools
 
 Usage:
-   infrastr -c command -s <service>
+   infrastr -c <command> -s <service>
+
+Usage multiple install 'pick' Service:
+   infrastr -c  <command> -s pick <service name[1]> <service name[2]> ...
 
 Options:
-   -c command
-   -s service name
+   -c <command>
+   -s <service name>
 
 Available commands: 
-   install  install service
+   install  <install service>
 
 Available services:
    all            Setup All Services
@@ -49,17 +52,53 @@ while getopts ":c:s:" opt; do
   esac
 done
 
+
 if [ "$command" = "install" ]; then
    case $service in
     all)
-         apt update -y
-         all=( nodejs pm2 docker kubectl compose helm ansible terraform rke2 )
+        DEB=`cat /etc/os-release |grep -oh ubuntu |head -1`
+        if [ $DEB ];then
+          apt update -y 
+        else
+          yum update -y 
+          yum install epel-release -y
+        fi
+         all=( golang nodejs pm2 docker kubectl compose helm ansible terraform rke2 )
          for s in ${all[@]}
          do 
                echo `printf "\e[1;34m[INFO]......[INSTALLING $s]\e[0m"`
                echo " "
                echo " "
-               bash raia -c install -s $s
+               bash infrastr -c install -s $s
+               echo " "
+               echo " "
+               echo `printf "\e[1;32m[INFO]......[INSTALLING $s DONE!]\e[0m"`
+               echo " "
+               echo " "
+         done
+    ;;
+    pick)
+        DEB=`cat /etc/os-release |grep -oh ubuntu |head -1`
+        if [ $DEB ];then
+          apt update -y 
+          echo "skip"
+        else
+          yum update -y 
+          yum install epel-release -y
+        fi
+         PICKS=`echo "$@" | sed 's/-c install -s pick //g'`
+         for s in ${PICKS[@]}
+         do 
+            if [ $s = "pick" ];then
+               echo " "
+               echo " 'pick' is not service, please see [ $0 --help" ]
+               echo " "
+               exit 0
+            fi
+               echo `printf "\e[1;34m[INFO]......[INSTALLING $s]\e[0m"`
+               echo " "
+               echo " "
+               bash infrastr -c install -s $s
                echo " "
                echo " "
                echo `printf "\e[1;32m[INFO]......[INSTALLING $s DONE!]\e[0m"`
@@ -68,11 +107,16 @@ if [ "$command" = "install" ]; then
          done
     ;;
     golang)
-         apt update -y && apt install wget -y
-         wget https://golang.org/dl/go1.17.linux-amd64.tar.gz -O golang.tar.gz
-         tar -C /usr/local -xvzf golang.tar.gz
-         echo "export PATH=$PATH:/usr/local/go/bin" >> ~/.bashrc
-         source ~/.bashrc
+         DEB=`cat /etc/os-release |grep -oh ubuntu |head -1`
+         if [ $DEB ];then
+          apt update -y && apt install wget -y
+         else
+          yum update -y && yum install wget -y
+         fi
+          wget https://golang.org/dl/go1.17.linux-amd64.tar.gz -O golang.tar.gz
+          tar -C /usr/local -xvzf golang.tar.gz
+          echo "export PATH=$PATH:/usr/local/go/bin" >> ~/.bashrc
+          source ~/.bashrc
     ;;
     nodejs)
          DEB=`cat /etc/os-release |grep -oh ubuntu |head -1`
@@ -82,6 +126,7 @@ if [ "$command" = "install" ]; then
             apt-get install -y nodejs
          elif [ $RPM ];then
             curl -fsSL https://rpm.nodesource.com/setup_lts.x | bash -
+            yum install -y nodejs gcc-c++ make
          else
             echo "OS not available on this script"
          fi
@@ -91,31 +136,45 @@ if [ "$command" = "install" ]; then
          NPM=`npm |grep -oh npm |head -1`
          if [ "$NPM" != "npm" ];then
             bash $0 -c install -s nodejs
+            npm install pm2@latest -g
          else
             npm install pm2@latest -g
          fi
     ;;       
     docker)
-         rm -rf gpg
-         apt-get remove docker docker-engine docker.io docker-ce docker-ce-cli containerd runc -y
-         apt-get install \
-           apt-transport-https \
-           ca-certificates \
-           curl \
-           gnupg-agent \
-           software-properties-common -y 
+         DEB=`cat /etc/os-release |grep -oh ubuntu |head -1`
+         RPM=`cat /etc/os-release |grep -oh centos |head -1`
+         if [ $DEB ];then
+          rm -rf gpg
+          apt-get remove docker docker-engine docker.io docker-ce docker-ce-cli containerd runc -y
+          apt-get install \
+               apt-transport-https \
+               ca-certificates \
+               curl \
+               gnupg-agent \
+               software-properties-common -y 
 
-         wget https://download.docker.com/linux/ubuntu/gpg && apt-key add gpg
+          wget https://download.docker.com/linux/ubuntu/gpg && apt-key add gpg
 
-         add-apt-repository \
-           "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
-           $(lsb_release -cs) \
-           stable" -y
-          apt-get update -y
-          apt-get install -y \
-           docker-ce=5:19.03.14~3-0~ubuntu-$(lsb_release -cs) \
-           docker-ce-cli=5:19.03.14~3-0~ubuntu-$(lsb_release -cs) \
-           containerd.io
+          add-apt-repository \
+               "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+               $(lsb_release -cs) \
+               stable" -y
+               apt-get update -y
+               apt-get install -y \
+               docker-ce=5:19.03.14~3-0~ubuntu-$(lsb_release -cs) \
+               docker-ce-cli=5:19.03.14~3-0~ubuntu-$(lsb_release -cs) \
+               containerd.io
+         elif [ $RPM ];then
+            yum install -y yum-utils
+            yum-config-manager \
+               --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+            yum install docker-ce docker-ce-cli containerd.io -y 
+            systemctl start docker && systemctl enable docker
+         else
+            echo "OS not available on this script"
+         fi
+         exit 0
     ;;
     kubectl)
          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
@@ -135,24 +194,43 @@ if [ "$command" = "install" ]; then
          ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
     ;;
     ansible)
-         apt update -y
-         apt-get install gnupg2 python3-pip -y
-         yes | pip install ansible
+        DEB=`cat /etc/os-release |grep -oh ubuntu |head -1`
+        if [ $DEB ];then
+          apt update -y && apt-get install gnupg2 python3-pip -y
+        else
+          yum install epel-release -y 
+          yum update -y && yum install python3-pip -y python3-setuptools     
+          yes | pip3 install --upgrade pip
+          yes | pip3 install setuptools-rust
+          CRYPTOGRAPHY_DONT_BUILD_RUST=1   
+        fi
+         yes | pip3 install ansible
     ;;
     terraform)
-         apt update -y && apt install wget zip -y
+        DEB=`cat /etc/os-release |grep -oh ubuntu |head -1`
+        if [ $DEB ];then
+          apt update -y && apt-get install wget zip -y
+        else
+          yum update -y && yum install wget zip unzip -y
+        fi  
          wget https://releases.hashicorp.com/terraform/1.0.5/terraform_1.0.5_linux_amd64.zip
          unzip terraform_1.0.5_linux_amd64.zip && mv terraform /usr/bin/
          chmod +x /usr/bin/terraform
     ;;
     rke2)
-          apt install -y jq
+        DEB=`cat /etc/os-release |grep -oh ubuntu |head -1`
+        if [ $DEB ];then
+          apt update -y && apt-get install jq -y
+        else
+          yum install epel-release -y
+          yum install jq -y
+        fi
           curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=v1.20.9+rke2r2 sh -
           systemctl start rke2-server
           until [ "$(curl -ks https://localhost:6443 |jq -r '.code')" = "401" ]
           do
                echo `printf "\e[1;31m[INFO]......[Waiting for KUBE API SERVER IS UP]\e[0m"`
-               sleep 2
+               sleep 10
           done
                echo " "
                echo " "
