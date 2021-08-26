@@ -1,0 +1,172 @@
+#!/bin/bash
+
+usage="
+infrastr Script, Personal Infrastructure Setup Purpose
+
+Usage:
+   infrastr -c command -s <service>
+
+Options:
+   -c command
+   -s service name
+
+Available commands: 
+   install  install service
+
+Available services:
+   all            Setup All Services
+   golang         Installing golang service
+   nodejs         Installing nodejs service
+   pm2            Installing pm2 service
+   docker         Installing docker service
+   kubectl        Installing kubectl service
+   helm           Installing Helm service
+   compose        Installing docker compose service
+   ansible        Installing ansible service
+   terraform      Installing terraform service
+   rke2           Setup RKE2 Kubernetes CLuster
+   
+"
+
+if [ "$1" == "--help" ] || [ -z $1 ]; then
+    echo "$usage"
+    exit 0
+fi
+
+while getopts ":c:s:" opt; do
+  case $opt in
+    c) command="$OPTARG"
+       set -f
+       IFS=' '
+       array="$OPTARG"
+    ;;
+    s) service="$OPTARG"
+    ;;
+    *) echo "Invalid option -$OPTARG" >&2
+    echo "$usage"
+    exit 0
+    ;;
+  esac
+done
+
+if [ "$command" = "install" ]; then
+   case $service in
+    all)
+         apt update -y
+         all=( nodejs pm2 docker kubectl compose helm ansible terraform rke2 )
+         for s in ${all[@]}
+         do 
+               echo `printf "\e[1;34m[INFO]......[INSTALLING $s]\e[0m"`
+               echo " "
+               echo " "
+               bash raia -c install -s $s
+               echo " "
+               echo " "
+               echo `printf "\e[1;32m[INFO]......[INSTALLING $s DONE!]\e[0m"`
+               echo " "
+               echo " "
+         done
+    ;;
+    golang)
+         apt update -y && apt install wget -y
+         wget https://golang.org/dl/go1.17.linux-amd64.tar.gz -O golang.tar.gz
+         tar -C /usr/local -xvzf golang.tar.gz
+         echo "export PATH=$PATH:/usr/local/go/bin" >> ~/.bashrc
+         source ~/.bashrc
+    ;;
+    nodejs)
+         DEB=`cat /etc/os-release |grep -oh ubuntu |head -1`
+         RPM=`cat /etc/os-release |grep -oh centos |head -1`
+         if [ $DEB ];then
+            curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -
+            apt-get install -y nodejs
+         elif [ $RPM ];then
+            curl -fsSL https://rpm.nodesource.com/setup_lts.x | bash -
+         else
+            echo "OS not available on this script"
+         fi
+         exit 0
+    ;;
+    pm2)
+         NPM=`npm |grep -oh npm |head -1`
+         if [ "$NPM" != "npm" ];then
+            bash $0 -c install -s nodejs
+         else
+            npm install pm2@latest -g
+         fi
+    ;;       
+    docker)
+         rm -rf gpg
+         apt-get remove docker docker-engine docker.io docker-ce docker-ce-cli containerd runc -y
+         apt-get install \
+           apt-transport-https \
+           ca-certificates \
+           curl \
+           gnupg-agent \
+           software-properties-common -y 
+
+         wget https://download.docker.com/linux/ubuntu/gpg && apt-key add gpg
+
+         add-apt-repository \
+           "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+           $(lsb_release -cs) \
+           stable" -y
+          apt-get update -y
+          apt-get install -y \
+           docker-ce=5:19.03.14~3-0~ubuntu-$(lsb_release -cs) \
+           docker-ce-cli=5:19.03.14~3-0~ubuntu-$(lsb_release -cs) \
+           containerd.io
+    ;;
+    kubectl)
+         curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+         mkdir -p ~/bin/
+         echo "export PATH=\$PATH:~/bin/" >> ~/.bashrc
+         chmod +x kubectl && mv kubectl ~/bin/
+         source ~/.bashrc
+    ;;
+    helm)
+         curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
+         chmod 700 get_helm.sh && bash get_helm.sh
+         rm -f get_helm.sh
+    ;;
+    compose)
+         curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+         chmod +x /usr/local/bin/docker-compose
+         ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+    ;;
+    ansible)
+         apt update -y
+         apt-get install gnupg2 python3-pip -y
+         yes | pip install ansible
+    ;;
+    terraform)
+         apt update -y && apt install wget zip -y
+         wget https://releases.hashicorp.com/terraform/1.0.5/terraform_1.0.5_linux_amd64.zip
+         unzip terraform_1.0.5_linux_amd64.zip && mv terraform /usr/bin/
+         chmod +x /usr/bin/terraform
+    ;;
+    rke2)
+          apt install -y jq
+          curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=v1.20.9+rke2r2 sh -
+          systemctl start rke2-server
+          until [ "$(curl -ks https://localhost:6443 |jq -r '.code')" = "401" ]
+          do
+               echo `printf "\e[1;31m[INFO]......[Waiting for KUBE API SERVER IS UP]\e[0m"`
+               sleep 2
+          done
+               echo " "
+               echo " "
+               echo `printf "\e[1;33m[INFO]......[KUBE API SERVER IS UP]\e[0m"`
+               echo " "
+               echo " "
+
+          sed -i '/KUBECONFIG/d' ~/.bashrc
+          echo "export KUBECONFIG=/etc/rancher/rke2/rke2.yaml" >> ~/.bashrc
+    ;;                    
+    *)
+         echo "$usage"
+    ;;            
+   esac
+
+fi
+
