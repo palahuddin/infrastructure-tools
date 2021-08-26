@@ -13,6 +13,10 @@ curl -o infrastr https://raw.githubusercontent.com/palahuddin/infrastructure-too
 
 ```bash
 infrastr -c <command> -s <service>
+
+### 'pick' install
+
+infrastr -c <command> -s pick <service[1]> <service[2]> <service[3]> ...
 ```
 
 ## Contributing
