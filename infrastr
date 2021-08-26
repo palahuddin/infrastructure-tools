@@ -19,6 +19,7 @@ Available commands:
 Available services:
    all            Setup All Services
    golang         Installing golang service
+   java           Installing java service
    nodejs         Installing nodejs service
    pm2            Installing pm2 service
    docker         Installing docker service
@@ -39,9 +40,6 @@ fi
 while getopts ":c:s:" opt; do
   case $opt in
     c) command="$OPTARG"
-       set -f
-       IFS=' '
-       array="$OPTARG"
     ;;
     s) service="$OPTARG"
     ;;
@@ -63,7 +61,7 @@ if [ "$command" = "install" ]; then
           yum update -y 
           yum install epel-release -y
         fi
-         all=( golang nodejs pm2 docker kubectl compose helm ansible terraform rke2 )
+         all=( java golang nodejs pm2 docker kubectl compose helm ansible terraform rke2 )
          for s in ${all[@]}
          do 
                echo `printf "\e[1;34m[INFO]......[INSTALLING $s]\e[0m"`
@@ -118,6 +116,14 @@ if [ "$command" = "install" ]; then
           echo "export PATH=$PATH:/usr/local/go/bin" >> ~/.bashrc
           source ~/.bashrc
     ;;
+    java)
+         DEB=`cat /etc/os-release |grep -oh ubuntu |head -1`
+         if [ $DEB ];then
+          apt update -y && apt install openjdk-8-jre-headless -y
+         else
+          yum update -y && yum install java-1.8.0-openjdk -y
+         fi
+    ;;    
     nodejs)
          DEB=`cat /etc/os-release |grep -oh ubuntu |head -1`
          RPM=`cat /etc/os-release |grep -oh centos |head -1`
