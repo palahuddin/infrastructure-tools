@@ -15,10 +15,12 @@ Options:
 
 Available commands: 
    install  <install service>
+   setup    <setup service>
 
-Available services:
+Available 'install' services:
    all            Setup All Services
    golang         Installing golang 
+   mc             Installing minio client 
    java           Installing java 
    nodejs         Installing nodejs 
    pm2            Installing pm2 
@@ -29,6 +31,10 @@ Available services:
    ansible        Installing ansible 
    terraform      Installing terraform 
    rke2           Setup RKE2 Kubernetes CLuster
+
+
+Available 'setup' services:
+   nginx          deploy nginx and certbot
    
 "
 
@@ -115,6 +121,14 @@ if [ "$command" = "install" ]; then
           echo "export PATH=$PATH:/usr/local/go/bin" >> ~/.bashrc
           source ~/.bashrc
     ;;
+    mc)
+          mkdir -p ~/bin/
+          sed -i '/~\/bin/d' ~/.bashrc
+          echo "export PATH=\$PATH:~/bin/" >> ~/.bashrc
+          source ~/.bashrc
+          wget https://dl.min.io/client/mc/release/linux-amd64/mc -O ~/bin/mc
+          chmod +x ~/bin/mc
+    ;;    
     java)
          DEB=`cat /etc/os-release |grep -ohE 'ubuntu|debian' |head -1`
          if [ $DEB ];then
@@ -184,6 +198,7 @@ if [ "$command" = "install" ]; then
     kubectl)
          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
          mkdir -p ~/bin/
+         sed -i '/~\/bin/d' ~/.bashrc
          echo "export PATH=\$PATH:~/bin/" >> ~/.bashrc
          chmod +x kubectl && mv kubectl ~/bin/
          source ~/.bashrc
@@ -251,14 +266,38 @@ if [ "$command" = "install" ]; then
     ;;            
    esac
 
-elif [ $command = "run" ];then
+elif [ $command = "setup" ];then
    case $service in
-    ip)
-      source ./function/myscript
-      mypubip
-      echoVar
-      echo "$MYNAME"
+    nginx)
+      DEB=`cat /etc/os-release |grep -ohE 'ubuntu|debian' |head -1`
+      if [ $DEB ];then
+         apt update -y && apt-get install nginx snapd -y
+         snap install core; sudo snap refresh core
+         snap install --classic certbot
+         ln -s /snap/bin/certbot /usr/bin/certbot
+      else
+         yum install epel-release -y
+         yum install nginx snapd -y
+         snap install core; sudo snap refresh core
+         snap install --classic certbot
+         systemctl enable --now snapd.socket
+         ln -s /var/lib/snapd/snap /snap
+      fi
+      curl -o /etc/nginx/conf.d/sample.conf -s https://raw.githubusercontent.com/palahuddin/infrastructure-tools/master/src/nginx-sample-conf
+      echo `printf "\e[1;34m## Installing Let's Encrypt SSL ##\e[0m"`
+      echo " "
+      echo `printf "\e[1;34mcertbot certonly --nginx -d web.example.com -d web.example.com\e[0m"`
+      echo " "
     ;;
+    harbor)
+       
+    ;;
+    minio)
+       
+    ;;
+    *)
+       
+    ;;        
     esac
 else 
    echo "done"
