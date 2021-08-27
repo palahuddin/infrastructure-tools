@@ -7,7 +7,7 @@ Usage:
    infrastr -c <command> -s <service>
 
 Usage multiple install 'pick' Service:
-   infrastr -c  <command> -s pick <service name[1]> <service name[2]> ...
+   infrastr -c  <command> -s pick <service name[1]> <service name[2]> <service name[3]> ...
 
 Options:
    -c <command>
@@ -18,16 +18,16 @@ Available commands:
 
 Available services:
    all            Setup All Services
-   golang         Installing golang service
-   java           Installing java service
-   nodejs         Installing nodejs service
-   pm2            Installing pm2 service
-   docker         Installing docker service
-   kubectl        Installing kubectl service
-   helm           Installing Helm service
-   compose        Installing docker compose service
-   ansible        Installing ansible service
-   terraform      Installing terraform service
+   golang         Installing golang 
+   java           Installing java 
+   nodejs         Installing nodejs 
+   pm2            Installing pm2 
+   docker         Installing docker 
+   kubectl        Installing kubectl 
+   helm           Installing Helm 
+   compose        Installing docker compose 
+   ansible        Installing ansible 
+   terraform      Installing terraform 
    rke2           Setup RKE2 Kubernetes CLuster
    
 "
@@ -54,7 +54,7 @@ done
 if [ "$command" = "install" ]; then
    case $service in
     all)
-        DEB=`cat /etc/os-release |grep -oh ubuntu |head -1`
+        DEB=`cat /etc/os-release |grep -ohE 'ubuntu|debian' |head -1`
         if [ $DEB ];then
           apt update -y 
         else
@@ -76,10 +76,9 @@ if [ "$command" = "install" ]; then
          done
     ;;
     pick)
-        DEB=`cat /etc/os-release |grep -oh ubuntu |head -1`
+        DEB=`cat /etc/os-release |grep -ohE 'ubuntu|debian' |head -1`
         if [ $DEB ];then
           apt update -y 
-          echo "skip"
         else
           yum update -y 
           yum install epel-release -y
@@ -105,7 +104,7 @@ if [ "$command" = "install" ]; then
          done
     ;;
     golang)
-         DEB=`cat /etc/os-release |grep -oh ubuntu |head -1`
+         DEB=`cat /etc/os-release |grep -ohE 'ubuntu|debian' |head -1`
          if [ $DEB ];then
           apt update -y && apt install wget -y
          else
@@ -117,7 +116,7 @@ if [ "$command" = "install" ]; then
           source ~/.bashrc
     ;;
     java)
-         DEB=`cat /etc/os-release |grep -oh ubuntu |head -1`
+         DEB=`cat /etc/os-release |grep -ohE 'ubuntu|debian' |head -1`
          if [ $DEB ];then
           apt update -y && apt install openjdk-8-jre-headless -y
          else
@@ -125,7 +124,7 @@ if [ "$command" = "install" ]; then
          fi
     ;;    
     nodejs)
-         DEB=`cat /etc/os-release |grep -oh ubuntu |head -1`
+         DEB=`cat /etc/os-release |grep -ohE 'ubuntu|debian' |head -1`
          RPM=`cat /etc/os-release |grep -oh centos |head -1`
          if [ $DEB ];then
             curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -
@@ -148,7 +147,7 @@ if [ "$command" = "install" ]; then
          fi
     ;;       
     docker)
-         DEB=`cat /etc/os-release |grep -oh ubuntu |head -1`
+         DEB=`cat /etc/os-release |grep -ohE 'ubuntu|debian' |head -1`
          RPM=`cat /etc/os-release |grep -oh centos |head -1`
          if [ $DEB ];then
           rm -rf gpg
@@ -200,7 +199,7 @@ if [ "$command" = "install" ]; then
          ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
     ;;
     ansible)
-        DEB=`cat /etc/os-release |grep -oh ubuntu |head -1`
+        DEB=`cat /etc/os-release |grep -ohE 'ubuntu|debian' |head -1`
         if [ $DEB ];then
           apt update -y && apt-get install gnupg2 python3-pip -y
         else
@@ -213,7 +212,7 @@ if [ "$command" = "install" ]; then
          yes | pip3 install ansible
     ;;
     terraform)
-        DEB=`cat /etc/os-release |grep -oh ubuntu |head -1`
+        DEB=`cat /etc/os-release |grep -ohE 'ubuntu|debian' |head -1`
         if [ $DEB ];then
           apt update -y && apt-get install wget zip -y
         else
@@ -224,7 +223,7 @@ if [ "$command" = "install" ]; then
          chmod +x /usr/bin/terraform
     ;;
     rke2)
-        DEB=`cat /etc/os-release |grep -oh ubuntu |head -1`
+        DEB=`cat /etc/os-release |grep -ohE 'ubuntu|debian' |head -1`
         if [ $DEB ];then
           apt update -y && apt-get install jq -y
         else
@@ -252,5 +251,16 @@ if [ "$command" = "install" ]; then
     ;;            
    esac
 
+elif [ $command = "run" ];then
+   case $service in
+    ip)
+      source ./function/myscript
+      mypubip
+      echoVar
+      echo "$MYNAME"
+    ;;
+    esac
+else 
+   echo "done"
 fi
 
