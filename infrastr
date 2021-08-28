@@ -323,16 +323,18 @@ elif [ $command = "setup" ];then
 
     ;;
     minio)
-    DOCKER_CHECK=`docker version |grep -ohE docker |head -1`
-    if [ "$DOCKER_CHECK" != "docker" ];then
-      bash $0 -c install -s docker
-    fi
     echo " "
     echo `printf "\e[1;34m[UPDATE INFORMATION MINIO CONFIGURATION]\e[0m"`
     echo " "
     read -p "Set Minio User Key :  " userkey;
     read -p "Set Minio Secret Key :  " secretkey;
-    docker rm -f minio
+
+    DOCKER_CHECK=`docker version |grep -ohE docker |head -1`
+    if [ "$DOCKER_CHECK" != "docker" ];then
+      bash $0 -c install -s docker
+    fi
+    
+    docker rm -f minio 
     mkdir -p /minio-storage
     docker run -d \
       -p 9000:9000 \
