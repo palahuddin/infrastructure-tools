@@ -34,7 +34,9 @@ Available 'install' services:
 
 
 Available 'setup' services:
-   nginx          deploy nginx and certbot
+   nginx          Deploy nginx and certbot
+   harbor         Opensource container registry
+   minio          Opensource object storage
    
 "
 
@@ -290,16 +292,76 @@ elif [ $command = "setup" ];then
       echo " "
     ;;
     harbor)
-       
+      DEB=`cat /etc/os-release |grep -ohE 'ubuntu|debian' |head -1`
+      if [ $DEB ];then
+         echo " "
+         echo `printf "\e[1;32mOS Like=$DEB\e[0m"`
+      else
+         echo `printf "\e[1;31mOS Temporary Unavailable for this script, Only 'Debian|Ubuntu'\e[0m"`
+         exit 1
+      fi
+    echo `printf "\e[1;34m[UPDATE INFORMATION REGISTRY CONFIGURATION]\e[0m"`
+    echo " "
+    read -p "Set Registry Hostname :  " hostname;
+    read -p "Set Registry Login Password :  " password;
+    read -p "Set Registry DB Password :  " dbpassword;
+    DOCKER_CHECK=`docker version |grep -ohE docker |head -1`
+    COMPOSE_CHECK=`docker-compose version |grep -ohE docker-compose |head -1`
+    if [ "$DOCKER_CHECK" != "docker" ];then
+      bash $0 -c install -s docker
+    fi
+
+    if [ "$COMPOSE_CHECK" != "docker-compose" ];then
+      bash $0 -c install -s compose
+    fi
+
+    wget https://github.com/goharbor/harbor/releases/download/v2.3.2/harbor-offline-installer-v2.3.2.tgz -O harbor-offline-installer.tgz
+    tar xzvf harbor-offline-installer.tgz && cd harbor
+    curl -o harbor.yml -s https://raw.githubusercontent.com/palahuddin/infrastructure-tools/master/src/harbor-sample-yml
+    sed -i "s/example.com/$hostname/g;s/secretpassworddb/$dbpassword/g;s/secretpassword/$password/g" harbor.yml
+    bash install.sh
+
     ;;
     minio)
-       
+    DOCKER_CHECK=`docker version |grep -ohE docker |head -1`
+    if [ "$DOCKER_CHECK" != "docker" ];then
+      bash $0 -c install -s docker
+    fi
+    echo " "
+    echo `printf "\e[1;34m[UPDATE INFORMATION MINIO CONFIGURATION]\e[0m"`
+    echo " "
+    read -p "Set Minio User Key :  " userkey;
+    read -p "Set Minio Secret Key :  " secretkey;
+    docker rm -f minio
+    mkdir -p /minio-storage
+    docker run -d \
+      -p 9000:9000 \
+      -p 9001:9001 \
+      --name minio \
+      -v /minio-storage:/data \
+      -e "MINIO_ROOT_USER=$userkey" \
+      -e "MINIO_ROOT_PASSWORD=$secretkey" \
+      minio/minio server /data --console-address ":9001"
+    sleep 10
+    echo " "
+    echo " "
+    echo `printf "\e[1;32m====================================\e[0m"`
+    echo `printf "\e[1;32m[INFORMATION OF MINIO CONFIGURATION]\e[0m"`
+    echo `printf "\e[1;32m====================================\e[0m"`
+    docker logs minio
+    echo `printf "\e[1;32mMinio User Key: $userkey\e[0m"`
+    echo `printf "\e[1;32mMinio Secret Key: $secretkey\e[0m"`
+    echo " "
+    echo " "
+    
     ;;
     *)
-       
+      echo "$USAGE"
+      exit 0
     ;;        
     esac
 else 
-   echo "done"
+   echo "$USAGE"
+   exit 0
 fi
 
