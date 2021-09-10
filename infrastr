@@ -37,6 +37,7 @@ Available 'setup' services:
    nginx          Deploy nginx and certbot
    harbor         Opensource container registry
    minio          Opensource object storage
+   kind           Local Kubernetes Cluster Development 
    
 "
 
@@ -280,10 +281,10 @@ elif [ $command = "setup" ];then
       else
          yum install epel-release -y
          yum install nginx snapd -y
+         systemctl enable --now snapd.socket
          snap install core; sudo snap refresh core
          snap install --classic certbot
-         systemctl enable --now snapd.socket
-         ln -s /var/lib/snapd/snap /snap
+         ln -sfn /var/lib/snapd/snap /snap
       fi
       curl -o /etc/nginx/conf.d/sample.conf -s https://raw.githubusercontent.com/palahuddin/infrastructure-tools/master/src/nginx-sample-conf
       echo `printf "\e[1;34m## Installing Let's Encrypt SSL ##\e[0m"`
@@ -322,6 +323,29 @@ elif [ $command = "setup" ];then
     bash install.sh
 
     ;;
+    kind)
+    echo `printf "\e[1;34m[UPDATE INFORMATION KIND CONFIGURATION]\e[0m"`
+    echo " "
+    read -p "Set Cluster Name (default: local):  " kind_cluster;
+    read -p "Set KUBE API Listen IP (default: 0.0.0.0):  " listen;
+    read -p "Set KUBE API Listen Port (default: 6443):  " port;
+      kind_cluster=${kind_cluster:-local}
+      listen=${listen:-0.0.0.0}
+      port=${port:-6443}
+    DOCKER_CHECK=`docker version |grep -ohE docker |head -1`
+    COMPOSE_CHECK=`docker-compose version |grep -ohE docker-compose |head -1`
+    if [ "$DOCKER_CHECK" != "docker" ];then
+      bash $0 -c install -s docker
+    fi
+    curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64
+    curl -Lo ./config.yaml https://raw.githubusercontent.com/palahuddin/infrastructure-tools/master/src/kind-config-sample
+    sed -i '/~\/bin/d' ~/.bashrc
+    echo "export PATH=\$PATH:~/bin/" >> ~/.bashrc
+    chmod +x kind && mv kind ~/bin/
+    source ~/.bashrc
+    sed "s/LIPADDR/$listen/;s/LPORT/$port/g" -i config.yaml
+    kind create cluster --name $kind_cluster --config config.yaml
+    ;;
     minio)
     echo " "
     echo `printf "\e[1;34m[UPDATE INFORMATION MINIO CONFIGURATION]\e[0m"`
@@ -333,7 +357,7 @@ elif [ $command = "setup" ];then
     if [ "$DOCKER_CHECK" != "docker" ];then
       bash $0 -c install -s docker
     fi
-    
+
     docker rm -f minio 
     mkdir -p /minio-storage
     docker run -d \
@@ -362,6 +386,36 @@ elif [ $command = "setup" ];then
       exit 0
     ;;        
     esac
+elif [ $command = "clean" ];then
+   case $service in
+    nginx)
+      DEB=`cat /etc/os-release |grep -ohE 'ubuntu|debian' |head -1`
+      RPM=`cat /etc/os-release |grep -oh centos |head -1`
+      if [ $DEB ];then
+         apt autoremove nginx -y
+      else 
+         yum remove -y nginx
+      fi      
+      snap remove certbot
+    ;;   
+    harbor)
+      cd ~/harbor && docker-compose down
+    ;;
+    minio)
+      docker rm -f minio
+    ;;    
+    docker)
+      DEB=`cat /etc/os-release |grep -ohE 'ubuntu|debian' |head -1`
+      RPM=`cat /etc/os-release |grep -oh centos |head -1`
+      if [ $DEB ];then
+         rm -rf gpg
+         apt-get remove docker docker-engine docker.io docker-ce docker-ce-cli containerd runc -y   
+      fi
+    ;;  
+    *)
+      echo "$USAGE"
+    ;;    
+   esac
 else 
    echo "$USAGE"
    exit 0
