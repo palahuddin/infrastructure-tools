@@ -20,9 +20,46 @@ infrastr -c <command> -s <service>
 infrastr -c <command> -s pick <service[1]> <service[2]> <service[3]> ...
 ```
 
-## Contributing
-Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+## Help
+```bash
+infrastr Script, Personal Infrastructure Setup Purpose For Common Tools
 
-Please make sure to update tests as appropriate.
+Usage:
+   infrastr -c <command> -s <service>
 
-## License
+Usage multiple install 'pick' Service:
+   infrastr -c  <command> -s pick <service name[1]> <service name[2]> <service name[3]> ...
+
+Options:
+   -c <command>
+   -s <service name>
+
+Available commands: 
+   install  <install service>
+   setup    <setup service>
+
+Available 'install' services:
+   all            Setup All Services
+   golang         Installing golang 
+   mc             Installing minio client 
+   java           Installing java 
+   nodejs         Installing nodejs 
+   pm2            Installing pm2 
+   docker         Installing docker 
+   kubectl        Installing kubectl 
+   helm           Installing Helm 
+   compose        Installing docker compose 
+   ansible        Installing ansible 
+   terraform      Installing terraform 
+   rke2           Setup RKE2 Kubernetes CLuster
+
+
+Available 'setup' services:
+   nginx          Deploy nginx and certbot
+   harbor         Opensource container registry
+   minio          Opensource object storage
+   kind           Local Kubernetes Cluster Development 
+```
+
+#
+
