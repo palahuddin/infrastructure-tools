@@ -191,7 +191,7 @@ if [ "$command" = "install" ]; then
             yum install -y yum-utils
             yum-config-manager \
                --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-            yum install docker-ce docker-ce-cli containerd.io -y 
+            yum install docker-ce docker-ce-cli containerd.io --allowerasing -y 
             systemctl start docker && systemctl enable docker
          else
             echo "OS not available on this script"
